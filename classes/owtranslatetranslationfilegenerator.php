@@ -1,25 +1,25 @@
 <?php
 /**
-*	@desc 		class OWTranslateTranslationFileGenerator		
+*	@desc 		class OWTranslateTranslationFileGenerator
 *	@author 	David LE RICHE <david.leriche@openwide.fr>
 *	@copyright	2012
 *	@version 	1.1
 */
 class OWTranslateTranslationFileGenerator {
-    
+
     public $tabPath;
     public $tabFile;
     public $languageList;
-    
+
     private $tabKey;
-    
+
     /**
 	*	@desc		Constructeur
 	*	@author 	David LE RICHE <david.leriche@openwide.fr>
 	*	@return		void
 	*	@copyright	2012
 	*	@version 	1.1
-	*/	
+	*/
     public function __construct() {
         try {
             $this->tabPath = array();
@@ -29,9 +29,9 @@ class OWTranslateTranslationFileGenerator {
             echo $e;
         }
     }
-    
+
     /**
-	*	@desc		Add path to the list 
+	*	@desc		Add path to the list
 	*	@author 	David LE RICHE <david.leriche@openwide.fr>
 	*	@params		string	$path => path for check files
 	*	@return		void
@@ -47,9 +47,9 @@ class OWTranslateTranslationFileGenerator {
             }
         }
     }
-    
+
     /**
-	*	@desc		Add file to the list 
+	*	@desc		Add file to the list
 	*	@author 	David LE RICHE <david.leriche@openwide.fr>
 	*	@params		string	$file => file for checing
 	*	@return		void
@@ -65,7 +65,7 @@ class OWTranslateTranslationFileGenerator {
             }
         }
     }
-    
+
     /**
 	*	@desc		Get the list of path
 	*	@author 	David LE RICHE <david.leriche@openwide.fr>
@@ -80,9 +80,9 @@ class OWTranslateTranslationFileGenerator {
             $listPath .= $path . ($i != sizeof($this->tabPath) ? "\n" : '');
             $i++;
         }
-        return $listPath;   
+        return $listPath;
     }
-    
+
     /**
 	*	@desc		Get the list of file
 	*	@author 	David LE RICHE <david.leriche@openwide.fr>
@@ -99,7 +99,7 @@ class OWTranslateTranslationFileGenerator {
         }
         return $listFile;
     }
-    
+
     /**
 	*	@desc		Analyse all files to find translation
 	*	@author 	David LE RICHE <david.leriche@openwide.fr>
@@ -124,13 +124,13 @@ class OWTranslateTranslationFileGenerator {
                 }
             }
             fclose($fp);
-            $finalMatches = array_merge($finalMatches, $matches);            
+            $finalMatches = array_merge($finalMatches, $matches);
             foreach($finalMatches as $fileType => $matchList) {
-            	foreach ($matchList as $match) {					            	
+            	foreach ($matchList as $match) {
 	                $tradKeys = ($fileType == 'template'  ? $match[2] : $match[1]);
 	                $tradValues = ($fileType == 'template'  ? $match[1] : $match[2]);
 	                foreach ($tradKeys as $key => $value) {
-	                    if (!isset($tabTrad[$value])) {	                    	
+	                    if (!isset($tabTrad[$value])) {
 	                        $tabTrad[$value] = array();
 	                    }
 	                }
@@ -145,7 +145,7 @@ class OWTranslateTranslationFileGenerator {
         $this->tabKey = $tabTrad;
         return $tabTrad;
     }
-    
+
     /**
 	*	@desc		Generate xml file for all locale on your site with all translation found
 	*	@author 	David LE RICHE <david.leriche@openwide.fr>
@@ -155,27 +155,27 @@ class OWTranslateTranslationFileGenerator {
 	*/
     public function generateXML() {
     	$this->languageList = eZContentLanguage::fetchList();
-    	$directoryMainExtension = eZINI::instance('owtranslate.ini')->variable( 'MainExtension', 'directory');		
+    	$directoryMainExtension = eZINI::instance('owtranslate.ini')->variable( 'MainExtension', 'directory');
 		$baseDirectory = eZExtension::baseDirectory().'/'.$directoryMainExtension.'/translations';
     	$this->createLocaleDirIfNotExist($baseDirectory);
-    	
+
         $localeOverride = eZINI::instance('owtranslate.ini')->variable( 'LocaleOverride', 'locale');
-        
+
         // verification file translation exist
         foreach ($this->languageList as $language) {
         	$locale = (array_key_exists($language->Locale, $localeOverride) ? $localeOverride[$language->Locale] : $language->Locale);
 
         	if (file_exists($baseDirectory.'/'.$locale.'/translation.ts')) {
-				$saveXml = $this->addTranslationIfNotExist($baseDirectory.'/'.$locale.'/translation.ts');			
-        	} else {        		
+				$saveXml = $this->addTranslationIfNotExist($baseDirectory.'/'.$locale.'/translation.ts');
+        	} else {
 		        $saveXml = $this->addTranslationFile($baseDirectory.'/'.$locale.'/translation.ts');
         	}
-        } 
+        }
         return $saveXml;
     }
-    
+
     /**
-	*	@desc		Add the new translation found in the existing file of translation 
+	*	@desc		Add the new translation found in the existing file of translation
 	*	@author 	David LE RICHE <david.leriche@openwide.fr>
 	*	@params		string	$file => the file where the translation is adding
 	*	@return		bool
@@ -185,35 +185,36 @@ class OWTranslateTranslationFileGenerator {
     public function addTranslationIfNotExist($file) {
     	$tsFile = new DOMDocument();
 		$tsFile->load($file);
-		
+
     	$xpath = new DOMXpath($tsFile);
     	$ts = $tsFile->documentElement;
-    	
-    	foreach($this->tabKey as $sourceName => $tabElement) {    
+
+    	foreach($this->tabKey as $sourceName => $tabElement) {
             foreach ($tabElement as $element) {
+            	$element = htmlspecialchars( $element );
             	$query = "//context[name=".(strpos($sourceName, "'") === false ? "'$sourceName'" : "\"$sourceName\"")."]/message[source=".(strpos($element, "'") === false ? "'$element'" : "\"$element\"")."]";
             	try {
             		if ($xpath->query($query) && !$xpath->query($query)->item(0)) {
-            		
+
 	            		$message = $tsFile->createElement('message');
 	                	$source = $tsFile->createElement('source', $element);
 	                	$translation = $tsFile->createElement('translation');
-	            		
+
 	            		$querySourceName = "//context[name=".(strpos($sourceName, "'") === false ? "'$sourceName'" : "\"$sourceName\"")."]";
 	            		if (!$xpath->query($querySourceName)->item(0)) {
 	            			$context = $tsFile->createElement('context');
 	            			$name = $tsFile->createELement('name', $sourceName);
-	            			
+
 	            			$context->appendChild($name);
 		                	$message->appendChild($source);
 		                	$message->appendChild($translation);
 		                	$context->appendChild($message);
 		                	$ts->appendChild($context);
-		                	
+
 	            		} else {
 	            			$name = $xpath->query("//context[name=".(strpos($sourceName, "'") === false ? "'$sourceName'" : "\"$sourceName\"")."]")->item(0);
 	            			$context = $xpath->query("//context[name=".(strpos($sourceName, "'") === false ? "'$sourceName'" : "\"$sourceName\"")."]/..")->item(0);
-		                	
+
 		                	$message->appendChild($source);
 		                	$message->appendChild($translation);
 		                	$name->appendChild($message);
@@ -221,10 +222,10 @@ class OWTranslateTranslationFileGenerator {
             		}
         		} catch (Exception $e) {
 					eZLog::write($e, 'owtranslate.log');
-				}            	
+				}
             }
-        }   
-        
+        }
+
         try {
         	if ($unlinkFile = unlink($file)) {
         		$saveXml = $tsFile->save($file, LIBXML_NOEMPTYTAG);
@@ -234,7 +235,7 @@ class OWTranslateTranslationFileGenerator {
         }
        	return $saveXml;
     }
-    
+
     /**
 	*	@desc		Create translation file with all translation found
 	*	@author 	David LE RICHE <david.leriche@openwide.fr>
@@ -244,32 +245,32 @@ class OWTranslateTranslationFileGenerator {
 	*	@version 	1.1
 	*/
     public function addTranslationFile($file) {
-    	
-		$doctype = DOMImplementation::createDocumentType("TS"); 
+
+		$doctype = DOMImplementation::createDocumentType("TS");
         $tsFile = DOMImplementation::createDocument(null, 'TS', $doctype);
         $tsFile->encoding = 'UTF-8';
         $tsFile->formatOutput = true;
-    	
+
     	$ts = $tsFile->documentElement;
-    	foreach($this->tabKey as $sourceName => $tabElement) {          
-    		$context = $tsFile->createElement('context');  
-            $name = $tsFile->createELement('name', $sourceName);            
+    	foreach($this->tabKey as $sourceName => $tabElement) {
+    		$context = $tsFile->createElement('context');
+            $name = $tsFile->createELement('name', $sourceName);
             $context->appendChild($name);
             foreach ($tabElement as $element) {
                 $message = $tsFile->createElement('message');
-                $source = $tsFile->createElement('source', $element);
+                $source = $tsFile->createElement('source', htmlspecialchars( $element ) );
                 $translation = $tsFile->createElement('translation');
-                
+
                 $message->appendChild($source);
                 $message->appendChild($translation);
-                $context->appendChild($message);             
+                $context->appendChild($message);
             }
             $ts->appendChild($context);
-        }     
+        }
         $saveXml = $tsFile->save($file, LIBXML_NOEMPTYTAG);
         return $saveXml;
     }
-    
+
     /**
 	*	@desc		Create all local directory for every language of your site
 	*	@author 	David LE RICHE <david.leriche@openwide.fr>
@@ -289,7 +290,7 @@ class OWTranslateTranslationFileGenerator {
     		}
     	}
     }
-    
+
     /**
 	*	@desc		Scan directory to find translation
 	*	@author 	David LE RICHE <david.leriche@openwide.fr>
@@ -302,7 +303,7 @@ class OWTranslateTranslationFileGenerator {
         if ($directory === null) {
             throw new Exception('Directory param can not be null');
         }
-        
+
         try {
             $openDirectory = opendir($directory);
             $tabFile = array();
@@ -316,7 +317,7 @@ class OWTranslateTranslationFileGenerator {
                 'flash',
             );
             while($element = readdir($openDirectory)) {
-                $path = $directory .'/'. $element;   
+                $path = $directory .'/'. $element;
                 if (is_dir($path) && !in_array($element, $tabExclude)) {
                     $tabFile = array_merge($tabFile, self::scanDirectory($path));
                 } else {
